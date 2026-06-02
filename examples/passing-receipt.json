@@ -1,0 +1,16 @@
+{
+  "command": "make test",
+  "created_at": "2026-06-02T00:00:00Z",
+  "cwd": ".",
+  "evidence": [
+    {
+      "path": "examples/test-output.log",
+      "sha256": "340fa6aedc20754ecf5a2a3b212685ad3c4a773d605cb40e73e363077b3bfa17",
+      "size_bytes": 25
+    }
+  ],
+  "exit_code": 0,
+  "notes": [],
+  "schema_version": "agent-command-receipt.v1",
+  "status": "pass"
+}
