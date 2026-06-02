@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-command-receipt"
+version = "0.1.0"
+description = "Create and verify hashed command evidence receipts for coding-agent handoffs."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+  { name = "Manuel Sampedro" }
+]
+keywords = ["ai agents", "codex", "evidence", "receipts", "verification"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Quality Assurance"
+]
+
+[project.scripts]
+agent-command-receipt = "agent_command_receipt.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
