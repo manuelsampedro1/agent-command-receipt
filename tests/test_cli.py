@@ -85,6 +85,88 @@ class CommandReceiptTests(unittest.TestCase):
             self.assertIn("Verdict: `passed`", stdout)
             self.assertIn("No evidence drift found", stdout)
 
+    def test_verify_can_require_passing_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            evidence = Path(tmp) / "lint.log"
+            receipt_path = Path(tmp) / "receipt.json"
+            evidence.write_text("lint failed\n", encoding="utf-8")
+
+            code, _, stderr = run_cli(
+                [
+                    "create",
+                    "--command",
+                    "make lint",
+                    "--status",
+                    "fail",
+                    "--exit-code",
+                    "1",
+                    "--created-at",
+                    "2026-06-02T00:00:00Z",
+                    "--base-dir",
+                    tmp,
+                    "--evidence",
+                    "lint.log",
+                    "--output",
+                    str(receipt_path),
+                ]
+            )
+            self.assertEqual(code, 0, stderr)
+
+            code, stdout, stderr = run_cli(
+                [
+                    "verify",
+                    str(receipt_path),
+                    "--base-dir",
+                    tmp,
+                    "--require-status",
+                    "pass",
+                    "--format",
+                    "json",
+                ]
+            )
+
+            self.assertEqual(code, 1, stderr)
+            report = json.loads(stdout)
+            self.assertEqual(report["receipt_status"], "fail")
+            self.assertEqual(report["requirements"]["required_status"], "pass")
+            self.assertEqual(report["findings"][0]["code"], "status-mismatch")
+
+    def test_verify_can_require_minimum_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            receipt_path = Path(tmp) / "receipt.json"
+
+            code, _, stderr = run_cli(
+                [
+                    "create",
+                    "--command",
+                    "make test",
+                    "--status",
+                    "pass",
+                    "--created-at",
+                    "2026-06-02T00:00:00Z",
+                    "--base-dir",
+                    tmp,
+                    "--output",
+                    str(receipt_path),
+                ]
+            )
+            self.assertEqual(code, 0, stderr)
+
+            code, stdout, stderr = run_cli(
+                [
+                    "verify",
+                    str(receipt_path),
+                    "--base-dir",
+                    tmp,
+                    "--min-evidence",
+                    "1",
+                ]
+            )
+
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("insufficient-evidence", stdout)
+            self.assertIn("expected at least 1", stdout)
+
     def test_verify_fails_when_evidence_changes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             evidence = Path(tmp) / "build.log"

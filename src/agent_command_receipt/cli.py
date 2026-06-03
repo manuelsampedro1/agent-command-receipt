@@ -138,9 +138,16 @@ def receipt_to_markdown(receipt: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def verify_receipt(receipt: dict[str, Any], base_dir: Path) -> dict[str, Any]:
+def verify_receipt(
+    receipt: dict[str, Any],
+    base_dir: Path,
+    *,
+    require_status: str | None = None,
+    min_evidence: int = 0,
+) -> dict[str, Any]:
     findings: list[Finding] = []
     checked = 0
+    receipt_status = str(receipt.get("status") or "")
 
     if receipt.get("schema_version") != SCHEMA_VERSION:
         findings.append(
@@ -148,6 +155,23 @@ def verify_receipt(receipt: dict[str, Any], base_dir: Path) -> dict[str, Any]:
                 "invalid-schema",
                 "error",
                 f"Expected schema_version {SCHEMA_VERSION}.",
+            )
+        )
+
+    if receipt_status and receipt_status not in VALID_STATUSES:
+        findings.append(
+            Finding(
+                "invalid-status",
+                "error",
+                f"Receipt status is not supported: {receipt_status}",
+            )
+        )
+    if require_status and receipt_status != require_status:
+        findings.append(
+            Finding(
+                "status-mismatch",
+                "error",
+                f"Receipt status is {receipt_status or 'missing'}; expected {require_status}.",
             )
         )
 
@@ -221,12 +245,29 @@ def verify_receipt(receipt: dict[str, Any], base_dir: Path) -> dict[str, Any]:
                 )
             )
 
+    if checked < min_evidence:
+        findings.append(
+            Finding(
+                "insufficient-evidence",
+                "error",
+                (
+                    f"Receipt verified {checked} evidence file(s); "
+                    f"expected at least {min_evidence}."
+                ),
+            )
+        )
+
     verdict = "passed" if not findings else "failed"
     return {
         "schema_version": "agent-command-receipt.verify.v1",
         "verdict": verdict,
         "receipt_command": receipt.get("command", ""),
+        "receipt_status": receipt_status,
         "checked_evidence": checked,
+        "requirements": {
+            "required_status": require_status,
+            "min_evidence": min_evidence,
+        },
         "findings": [finding.as_dict() for finding in findings],
     }
 
@@ -236,6 +277,7 @@ def verification_to_markdown(report: dict[str, Any]) -> str:
         "# Agent Command Receipt Verification",
         "",
         f"Verdict: `{report.get('verdict', 'failed')}`",
+        f"Receipt status: `{report.get('receipt_status', '')}`",
         f"Checked evidence files: `{report.get('checked_evidence', 0)}`",
         "",
         "## Command",
@@ -333,6 +375,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="markdown",
         help="verification output format",
     )
+    verify.add_argument(
+        "--require-status",
+        choices=VALID_STATUSES,
+        help="fail verification unless the receipt has this status",
+    )
+    verify.add_argument(
+        "--min-evidence",
+        type=int,
+        default=0,
+        help="fail verification unless at least this many evidence files verify",
+    )
     verify.add_argument("--output", help="write output to this path")
 
     return parser
@@ -364,8 +417,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             write_payload(payload, args.output)
             return 0
 
+        if args.min_evidence < 0:
+            raise ValueError("min-evidence must not be negative")
         receipt = parse_receipt(Path(args.receipt))
-        report = verify_receipt(receipt, Path(args.base_dir))
+        report = verify_receipt(
+            receipt,
+            Path(args.base_dir),
+            require_status=args.require_status,
+            min_evidence=args.min_evidence,
+        )
         if args.format == "json":
             payload = json.dumps(report, indent=2, sort_keys=True)
         else:

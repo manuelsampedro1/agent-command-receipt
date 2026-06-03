@@ -13,6 +13,7 @@ The tool is dependency-free and local-first. It does not execute shell commands 
 - Optional exit code, working directory, notes, and fixed creation time.
 - Evidence file paths, sizes, and SHA-256 hashes.
 - A verification report that fails when evidence files are missing or changed.
+- Optional strict gates for required receipt status and minimum verified evidence.
 
 ## Install
 
@@ -52,6 +53,17 @@ Verify the receipt before reusing the claim:
 PYTHONPATH=src python3 -m agent_command_receipt verify \
   /tmp/agent-command-receipt.json \
   --base-dir /tmp
+```
+
+For closeout, ledger, or claim-check reuse, verify both integrity and claim
+strength:
+
+```sh
+PYTHONPATH=src python3 -m agent_command_receipt verify \
+  /tmp/agent-command-receipt.json \
+  --base-dir /tmp \
+  --require-status pass \
+  --min-evidence 1
 ```
 
 Verify the included example receipt:
